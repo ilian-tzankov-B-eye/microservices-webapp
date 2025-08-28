@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-dashboard
+  namespace: microservices-demo
+  labels:
+    app: test-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-dashboard
+  template:
+    metadata:
+      labels:
+        app: test-dashboard
+    spec:
+      containers:
+      - name: webapp
+        image: microservices-demo/webapp:debug
+        imagePullPolicy: Never  # Use local images only
+        ports:
+        - containerPort: 8002
+          name: http
+        - containerPort: 5680
+          name: debug
+        env:
+        - name: SERVICE1_URL
+          value: "http://service1-user-management:8000"
+        - name: SERVICE2_URL
+          value: "http://service2-data-processing:8001"
+        - name: SERVICE_TIMEOUT
+          value: "30"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8002
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-dashboard
+  namespace: microservices-demo
+  labels:
+    app: test-dashboard
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8002
+    targetPort: 8002
+    protocol: TCP
+    name: http
+  - port: 5680
+    targetPort: 5680
+    protocol: TCP
+    name: debug
+  selector:
+    app: test-dashboard
